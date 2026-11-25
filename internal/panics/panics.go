@@ -151,7 +151,6 @@ func DeferBeforePanic() (events []string) {
 
 	panic("panic")
 
-	return nil
 }
 
 // 12. RecoverOutsideDefer вызывает recover в обычном коде.
