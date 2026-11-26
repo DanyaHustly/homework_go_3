@@ -3,6 +3,7 @@ package errorshomework
 import (
 	"errors"
 	"fmt"
+	"strconv"
 )
 
 var ErrNotFound = errors.New("not found")
@@ -20,7 +21,10 @@ func (e *FieldError) Error() string {
 //
 // TODO: верните true только для nil-ошибки.
 func IsNil(err error) bool {
-	return false
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // 02. RequireText проверяет обязательное текстовое поле.
@@ -28,6 +32,9 @@ func IsNil(err error) bool {
 // TODO: если value пустая строка, верните *FieldError с указанным field
 // и причиной "is required". Для непустого значения верните nil.
 func RequireText(field, value string) error {
+	if value == "" {
+		return &FieldError{Field: field, Reason: "is required"}
+	}
 	return nil
 }
 
@@ -36,7 +43,11 @@ func RequireText(field, value string) error {
 // TODO: положительное число считается корректным. Для нуля и отрицательных
 // значений верните *FieldError с причиной "must be positive".
 func ValidatePositive(field string, value int) error {
+	if value <= 0 {
+		return &FieldError{Field: field, Reason: "must be positive"}
+	}
 	return nil
+
 }
 
 // 04. ParseAge преобразует текст в целое число.
@@ -44,7 +55,11 @@ func ValidatePositive(field string, value int) error {
 // TODO: верните полученное число. Если строка не является целым числом,
 // верните ошибку с контекстом "parse age", не потеряв исходную причину.
 func ParseAge(raw string) (int, error) {
-	return 0, nil
+	result, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, fmt.Errorf("parse age: %w", err)
+	}
+	return result, nil
 }
 
 // 05. WrapOperation добавляет к ошибке название выполняемой операции.
@@ -52,7 +67,10 @@ func ParseAge(raw string) (int, error) {
 // TODO: nil должен остаться nil. Для ненулевой ошибки добавьте operation
 // к тексту так, чтобы исходную ошибку можно было найти в цепочке.
 func WrapOperation(operation string, err error) error {
-	return nil
+	if err == nil {
+		return nil
+	}
+	return fmt.Errorf("%s: %w", operation, err)
 }
 
 // 06. NotFound создаёт ошибку отсутствующего ресурса.
@@ -60,21 +78,22 @@ func WrapOperation(operation string, err error) error {
 // TODO: текст должен содержать название resource, а ErrNotFound должна
 // оставаться доступной как причина ошибки.
 func NotFound(resource string) error {
-	return nil
+	return fmt.Errorf("%s: %w", resource, ErrNotFound)
 }
 
 // 07. IsNotFound определяет, есть ли ErrNotFound в цепочке ошибок.
 //
 // TODO: корректно обработайте nil, прямую и многократно обёрнутую ошибку.
 func IsNotFound(err error) bool {
-	return false
+	result := errors.Is(err, ErrNotFound)
+	return result
 }
 
 // 08. SameCause проверяет, относится ли err к указанной причине target.
 //
 // TODO: учитывайте цепочку обёрнутых ошибок, а не только текст.
 func SameCause(err, target error) bool {
-	return false
+	return errors.Is(err, target)
 }
 
 // 09. FieldFrom пытается извлечь *FieldError из цепочки ошибок.
@@ -82,7 +101,12 @@ func SameCause(err, target error) bool {
 // TODO: верните найденную ошибку и true. Если подходящего типа нет,
 // верните nil и false.
 func FieldFrom(err error) (*FieldError, bool) {
+	var target *FieldError
+	if errors.As(err, &target) {
+		return target, true
+	}
 	return nil, false
+
 }
 
 // 10. FieldName возвращает имя поля из *FieldError.
@@ -90,13 +114,22 @@ func FieldFrom(err error) (*FieldError, bool) {
 // TODO: ошибка может быть обёрнута несколько раз. Для другой ошибки
 // или nil верните пустую строку.
 func FieldName(err error) string {
-	return ""
+	target, ok := FieldFrom(err)
+	if !ok {
+		return ""
+	}
+	return target.Field
 }
 
 // 11. FirstError возвращает первую ненулевую ошибку из списка.
 //
 // TODO: порядок ошибок должен сохраняться. Если ошибок нет, верните nil.
 func FirstError(errs []error) error {
+	for _, err := range errs {
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -104,13 +137,22 @@ func FirstError(errs []error) error {
 //
 // TODO: nil-элементы не должны попадать в результат.
 func CountErrors(errs []error) int {
-	return 0
+	count := 0
+	for _, err := range errs {
+		if err != nil {
+			count++
+		}
+	}
+	return count
 }
 
 // 13. ErrorText возвращает текст ошибки.
 //
 // TODO: для nil верните пустую строку.
 func ErrorText(err error) string {
+	if err != nil {
+		return err.Error()
+	}
 	return ""
 }
 
@@ -119,6 +161,20 @@ func ErrorText(err error) string {
 // TODO: пустые name и email считаются ошибкой обязательного поля,
 // age должен быть положительным. Верните только первую найденную ошибку.
 func ValidateUser(name, email string, age int) error {
+	err := RequireText("name", name)
+	if err != nil {
+		return err
+	}
+	err = RequireText("email", email)
+	if err != nil {
+		return err
+	}
+
+	err = ValidatePositive("age", age)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -127,5 +183,17 @@ func ValidateUser(name, email string, age int) error {
 // TODO: nil -> "none"; ErrNotFound в цепочке -> "not_found";
 // *FieldError -> "field:<имя поля>"; любая другая ошибка -> "other".
 func Classify(err error) string {
-	return ""
+	if err == nil {
+		return "none"
+	}
+
+	if errors.Is(err, ErrNotFound) {
+		return "not_found"
+	}
+
+	var target *FieldError
+	if errors.As(err, &target) {
+		return fmt.Sprintf("field:%s", FieldName(err))
+	}
+	return "other"
 }
