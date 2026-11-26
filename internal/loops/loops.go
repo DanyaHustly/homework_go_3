@@ -8,10 +8,13 @@ type User struct {
 // 01. SumTo считает сумму целых чисел от 1 до n включительно.
 // TODO: для n <= 0 верните 0.
 func SumTo(n int) int {
-	if n <= 0 {
-		return 0
+	sum := 0
+
+	for i := 1; i <= n; i++ {
+		sum += i
 	}
-	return n + SumTo(n-1)
+
+	return sum
 }
 
 // 02. SumBetween считает сумму от start до end включительно.
